@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuadC — Session Data Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Light theme (default) */
+  :root {
+    --bg: #f4f4f6;
+    --surface: #ffffff;
+    --surface-2: #f0f0f4;
+    --border: rgba(0,0,0,0.08);
+    --border-hover: rgba(0,0,0,0.16);
+    --accent: #4f5ef0;
+    --accent-dim: rgba(79,94,240,0.1);
+    --accent-glow: rgba(79,94,240,0.2);
+    --text: #1a1a2e;
+    --text-muted: #5a5a7a;
+    --text-dim: #9999b8;
+    --success: #059669;
+    --success-dim: rgba(5,150,105,0.08);
+    --pill-bg: #f0f0f4;
+    --pill-border: rgba(0,0,0,0.08);
+    --pill-hover: #e8e8f0;
+  }
+
+  /* Dark theme */
+  [data-theme="dark"] {
+    --bg: #0f0f11;
+    --surface: #18181c;
+    --surface-2: #1f1f25;
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.15);
+    --accent: #5b6af7;
+    --accent-dim: rgba(91,106,247,0.15);
+    --accent-glow: rgba(91,106,247,0.3);
+    --text: #f0f0f2;
+    --text-muted: #8888a0;
+    --text-dim: #4a4a5e;
+    --success: #34d399;
+    --success-dim: rgba(52,211,153,0.12);
+    --pill-bg: #1f1f28;
+    --pill-border: rgba(255,255,255,0.08);
+    --pill-hover: #26262f;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+  }
+
+  .wrap { width: 100%; max-width: 820px; }
+
+  header { margin-bottom: 1.5rem; }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 600; color: #fff;
+    letter-spacing: -1px;
+  }
+
+  .logo-text { font-size: 14px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.02em; }
+
+  h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 6px; line-height: 1.2; }
+  h1 span { color: var(--accent); }
+
+  .tagline { font-size: 15px; color: var(--text-muted); font-weight: 300; line-height: 1.5; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .card-section { padding: 1.25rem 2rem; border-bottom: 1px solid var(--border); }
+  .card-section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.75rem;
+  }
+
+  #upload-area {
+    border: 1.5px dashed var(--border-hover);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  #upload-area:hover, #upload-area.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .upload-icon {
+    width: 52px; height: 52px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-hover);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 22px;
+    transition: all 0.2s;
+  }
+
+  #upload-area:hover .upload-icon, #upload-area.drag-over .upload-icon {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+
+  .upload-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .upload-sub { font-size: 13px; color: var(--text-muted); }
+
+  .file-type {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 3px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  .banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--success-dim);
+    border: 1px solid rgba(52,211,153,0.2);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--success);
+    margin-bottom: 1rem;
+    transition: opacity 0.5s ease, max-height 0.5s ease, margin 0.5s ease, padding 0.5s ease;
+    overflow: hidden;
+  }
+
+  .banner .dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; flex-shrink: 0; }
+
+  .hint { font-size: 13px; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.5; }
+
+  #col-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 7px;
+    min-height: 48px;
+  }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px 7px 10px;
+    background: var(--pill-bg);
+    border: 1px solid var(--pill-border);
+    border-left: 3px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+    transition: all 0.15s;
+    color: var(--text);
+    height: 40px;
+    overflow: hidden;
+  }
+
+  .pill.selected { border-left-color: var(--accent); background: rgba(255,255,255,0.06); }
+  .pill:hover { background: var(--pill-hover); border-color: var(--border-hover); border-left-color: var(--accent); }
+  .pill.dragging { opacity: 0.25; }
+  .pill.unchecked { opacity: 0.35; border-left-color: transparent; }
+
+  .pill-grip {
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .pill input[type=checkbox] {
+    width: 14px; height: 14px;
+    cursor: pointer;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .btn-primary:hover { filter: brightness(1.1); box-shadow: 0 0 28px var(--accent-glow); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--border-hover);
+  }
+
+  .btn-secondary:hover { background: var(--surface-2); color: var(--text); border-color: var(--border-hover); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border-color: transparent;
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  .btn-ghost:hover { color: var(--text); }
+
+  .col-count {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  .feedback {
+    font-size: 13px;
+    color: var(--success);
+    margin-top: 10px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .feedback .dot { width: 5px; height: 5px; background: var(--success); border-radius: 50%; }
+
+  .clear-link {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: underline;
+    cursor: pointer;
+    display: none;
+    margin-top: 6px;
+    background: none;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    padding: 0;
+  }
+
+  .clear-link:hover { color: var(--text); }
+
+  footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .tip {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    line-height: 1.5;
+    transition: opacity 0.5s ease;
+  }
+
+  .pill-badge {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .tip strong { color: var(--text); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header style="display:flex;align-items:flex-start;justify-content:space-between;">
+    <div>
+      <div class="logo">
+        <img src="data:image/png;base64,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" style="width:36px;height:36px;border-radius:8px;display:block;">
+      <span class="logo-text">QuadC / TutorOcean</span>
+    </div>
+    <h1>Session Data <span>Column Tool</span></h1>
+    <p class="tagline">Upload your CSV, choose and reorder the columns you need, download instantly.<br>Your preferences are saved so next time it's one click.</p>
+    </div>
+    <button id="help-btn" title="Show help" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;flex-shrink:0;margin-top:4px;transition:all 0.15s;font-family:'DM Sans',sans-serif;">Help</button>
+    <button id="demo-btn" title="See how it works" style="background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;flex-shrink:0;margin-top:4px;transition:all 0.15s;font-family:'DM Sans',sans-serif;font-weight:500;">▶ Demo</button>
+    <button id="theme-btn" title="Toggle dark mode" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;flex-shrink:0;margin-top:4px;transition:all 0.15s;">🌙</button>
+  </header>
+
+  <div class="card">
+
+    <div class="card-section" id="upload-section">
+      <div class="section-label">Step 1 — Upload</div>
+      <div id="upload-area">
+        <div class="upload-icon">↑</div>
+        <div class="upload-title">Drop your CSV here</div>
+        <div class="upload-sub">or click to browse your files</div>
+        <span class="file-type">.csv</span>
+        <input type="file" id="file-input" accept=".csv" style="display:none;">
+      </div>
+    </div>
+
+    <div class="card-section" id="columns-section" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <div class="section-label" style="margin-bottom:0;">Step 2 — Arrange columns</div>
+        <div id="file-loaded-banner" style="display:none;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:var(--text-dim);">Active:</span>
+          <span id="file-loaded-name" style="font-size:12px;color:var(--text-muted);font-family:'DM Mono',monospace;"></span>
+        </div>
+      </div>
+
+      <!-- CSV file tabs -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:1rem;flex-wrap:wrap;">
+        <div id="csv-tab-list" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <button id="add-csv-btn" style="padding:5px 12px;font-size:12px;background:transparent;border:1.5px dashed var(--border-hover);border-radius:7px;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;">+ Add CSV</button>
+        <input type="file" id="add-csv-input" accept=".csv" style="display:none;">
+      </div>
+
+      <!-- Arrange / Preview tabs -->
+      <div style="display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid var(--border);">
+        <button id="tab-arrange" onclick="switchTab('arrange')" style="padding:8px 18px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;background:transparent;border:none;border-bottom:2px solid var(--accent);color:var(--text);cursor:pointer;margin-bottom:-1px;">Arrange</button>
+        <button id="tab-preview" onclick="switchTab('preview')" style="padding:8px 18px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer;margin-bottom:-1px;">Preview</button>
+      </div>
+
+      <div class="banner" id="saved-banner">
+        <div class="dot"></div>
+        Your saved column order has been applied automatically.
+      </div>
+
+      <!-- Arrange tab content -->
+      <div id="tab-arrange-content">
+        <div id="swap-zone" style="border:1.5px dashed var(--border-hover);border-radius:8px;padding:20px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;cursor:pointer;transition:all 0.15s;font-size:13px;color:var(--text-muted);text-align:center;">
+          <span style="font-size:20px;">📂</span>
+          <span>Drop a new CSV here to swap — or <label for="swap-input" style="color:var(--accent);cursor:pointer;text-decoration:underline;">click to browse</label></span>
+          <input type="file" id="swap-input" accept=".csv" style="display:none;">
+        </div>
+
+        <div style="position:relative;margin-bottom:10px;">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:14px;pointer-events:none;">⌕</span>
+          <input id="col-search" type="text" placeholder="Search columns..." style="width:100%;padding:8px 12px 8px 32px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;" />
+        </div>
+
+        <!-- Presets dropdown -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+          <button class="btn btn-secondary" id="select-all-btn" style="padding:6px 14px;font-size:13px;">Select all</button>
+          <button class="btn btn-secondary" id="deselect-all-btn" style="padding:6px 14px;font-size:13px;">Deselect all</button>
+          <span id="search-count" style="font-size:12px;color:var(--text-dim);align-self:center;margin-left:4px;"></span>
+          <div style="position:relative;margin-left:auto;">
+            <button id="presets-toggle" class="btn btn-secondary" style="padding:6px 14px;font-size:13px;">☰ Presets</button>
+            <div id="presets-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border-hover);border-radius:10px;padding:10px;min-width:220px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Saved Presets</div>
+              <div id="preset-list" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px;"></div>
+              <button id="save-preset-btn" class="btn btn-ghost" style="padding:5px 10px;font-size:12px;border:1px solid var(--border-hover);width:100%;justify-content:center;">+ Save current as preset</button>
+            </div>
+          </div>
+        </div>
+        <div id="col-list"></div>
+        <div class="tip" id="excel-tip"><strong>Excel tip:</strong> After opening the downloaded CSV, press <strong>Ctrl + A</strong> then double-click any column border to auto-fit all column widths.</div>
+      </div>
+
+      <!-- Preview tab content -->
+      <div id="tab-preview-content" style="display:none;">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Showing first 5 rows in your current column order. Updates as you arrange.</p>
+        <div style="overflow-x:auto;">
+          <table id="preview-table" style="width:100%;border-collapse:collapse;font-size:13px;font-family:'DM Sans',monospace;">
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <footer>
+    Preferences saved locally in your browser &mdash; your data never leaves your computer.
+  </footer>
+
+</div>
+
+<!-- Sticky bottom action bar -->
+<div id="sticky-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--surface);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:12px 1.5rem;">
+  <div style="max-width:840px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-primary" id="dl-btn">↓ &nbsp;Download CSV</button>
+    <button class="btn btn-secondary" id="save-btn">Save column order</button>
+    <button class="btn btn-ghost" id="reset-btn">Start over</button>
+    <span class="col-count" id="col-count"></span>
+    <div class="feedback" id="save-confirm" style="margin-top:0;margin-left:8px;">
+      <div class="dot"></div>
+      Column order saved — applied automatically next time.
+    </div>
+    <button class="clear-link" id="clear-saved-btn" style="margin-top:0;margin-left:4px;">Clear saved preferences</button>
+  </div>
+</div>
+
+<!-- Demo Overlay -->
+<div id="demo-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1002;align-items:center;justify-content:center;padding:1.5rem;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;padding:2rem;box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+      <div style="font-size:17px;font-weight:600;color:var(--text);" id="demo-title"></div>
+      <button onclick="closeDemo()" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div style="background:var(--surface-2);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;min-height:160px;" id="demo-visual"></div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:1.25rem;" id="demo-body"></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="demo-prev" class="btn btn-secondary" style="padding:8px 16px;">← Back</button>
+      <div style="flex:1;display:flex;justify-content:center;gap:6px;" id="demo-dots"></div>
+      <button id="demo-next" class="btn btn-primary" style="padding:8px 16px;">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Guided Setup Overlay -->
+<div id="guided-setup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;padding:1.5rem;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.75rem;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);" id="guided-step-label"></div>
+      <button onclick="skipGuide()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Skip guide</button>
+    </div>
+    <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:6px;" id="guided-title"></div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:1.25rem;" id="guided-body"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="guided-primary" class="btn btn-primary" style="flex:1;justify-content:center;"></button>
+      <button id="guided-secondary" class="btn btn-secondary" style="display:none;"></button>
+    </div>
+    <div style="display:flex;justify-content:center;gap:6px;margin-top:1rem;" id="guided-dots"></div>
+  </div>
+</div>
+
+<!-- Onboarding Overlay -->
+<div id="onboarding" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;padding:1.5rem;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:500px;width:100%;padding:2rem;">
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;">
+      <div style="width:36px;height:36px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📋</div>
+      <div>
+        <div style="font-size:17px;font-weight:600;color:var(--text);">QuadC Session Data Tool</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:2px;">Reorder your CSV columns, then download — takes seconds.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:1.5rem;">
+
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--surface-2);border-radius:10px;">
+        <div style="font-size:18px;flex-shrink:0;">📂</div>
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;">Drop your CSV</div>
+          <div style="font-size:13px;color:var(--text-muted);">Drag a CSV file onto the upload area or click to browse. You can add multiple CSVs — each gets its own tab and downloads as a separate sheet in one Excel file.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--surface-2);border-radius:10px;">
+        <div style="font-size:18px;flex-shrink:0;">🔲</div>
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;">Choose your columns</div>
+          <div style="font-size:13px;color:var(--text-muted);">Click a column to include or exclude it. Drag it to reorder. Search to find columns quickly. Numbers show the exact order in your download.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--surface-2);border-radius:10px;">
+        <div style="font-size:18px;flex-shrink:0;">👁️</div>
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;">Preview before downloading</div>
+          <div style="font-size:13px;color:var(--text-muted);">Switch to the Preview tab to see exactly how your download will look before you export it.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--surface-2);border-radius:10px;">
+        <div style="font-size:18px;flex-shrink:0;">💾</div>
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;">Save your setup</div>
+          <div style="font-size:13px;color:var(--text-muted);">Click <strong>Save column order</strong> so next time your preferences load automatically. Use <strong>Presets</strong> to save multiple named layouts — e.g. "Student View" or "Host View" — and switch between them instantly.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <button id="onboarding-close" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;">Got it, let's go</button>
+    <button onclick="document.getElementById('onboarding').style.display='none';showDemoStep(0);document.getElementById('demo-overlay').style.display='flex';" style="width:100%;padding:9px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:8px;">▶ Watch a quick demo instead</button>
+    <p style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:10px;">Press <strong>Help</strong> in the top right anytime to see this again</p>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'quadc_col_order_v1';
+const ONBOARDING_KEY = 'quadc_onboarding_done';
+
+// Theme toggle
+const THEME_KEY = 'quadc_theme';
+const themeBtn = document.getElementById('theme-btn');
+const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+if (savedTheme === 'dark') {
+  document.documentElement.setAttribute('data-theme', 'dark');
+  themeBtn.textContent = '☀️';
+}
+themeBtn.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (isDark) {
+    document.documentElement.removeAttribute('data-theme');
+    themeBtn.textContent = '🌙';
+    localStorage.setItem(THEME_KEY, 'light');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    themeBtn.textContent = '☀️';
+    localStorage.setItem(THEME_KEY, 'dark');
+  }
+});
+
+// --- Guided Setup ---
+const GUIDED_KEY = 'quadc_guided_done';
+const guidedSetup = document.getElementById('guided-setup');
+const guidedTitle = document.getElementById('guided-title');
+const guidedBody = document.getElementById('guided-body');
+const guidedStepLabel = document.getElementById('guided-step-label');
+const guidedPrimary = document.getElementById('guided-primary');
+const guidedSecondary = document.getElementById('guided-secondary');
+const guidedDots = document.getElementById('guided-dots');
+let guidedStep = 0;
+
+const guidedSteps = [
+  {
+    title: 'Drop your first CSV',
+    body: 'Start by uploading one of your CSV exports from the admin portal. Just drag it onto the upload area or click to browse.',
+    primary: 'Got it',
+    action: () => { hideGuide(); }
+  },
+  {
+    title: 'Name this tab',
+    body: 'Give this data source a name — something like "Draft Reviews" or "Live Sessions". This will be the sheet name in your downloaded Excel file. You can rename it anytime by double-clicking the tab.',
+    primary: 'Name it now',
+    secondary: 'Skip',
+    primaryAction: () => {
+      hideGuide();
+      const current = csvStates[activeCsvIndex].tabLabel || csvStates[activeCsvIndex].name.replace('.csv','');
+      const newName = prompt('Name this tab:', current);
+      if (newName && newName.trim()) {
+        csvStates[activeCsvIndex].tabLabel = newName.trim();
+        renderCsvTabs();
+      }
+      setTimeout(() => showGuidedStep(2), 300);
+    },
+    secondaryAction: () => showGuidedStep(2)
+  },
+  {
+    title: 'Choose your columns',
+    body: 'Click any column to include or exclude it. Drag columns into the order you want. Use the search bar to find columns quickly. The number on each column shows its position in the download.',
+    primary: 'Got it',
+    action: () => showGuidedStep(3)
+  },
+  {
+    title: 'Need another CSV?',
+    body: 'If your monthly report uses multiple data sources, click "+ Add CSV" to load another one. Each gets its own tab and you can set up columns independently for each.',
+    primary: 'Add another CSV',
+    secondary: 'No, just one',
+    primaryAction: () => {
+      hideGuide();
+      document.getElementById('add-csv-input').click();
+      setTimeout(() => showGuidedStep(4), 500);
+    },
+    secondaryAction: () => showGuidedStep(4)
+  },
+  {
+    title: 'Save your setup as a preset',
+    body: 'Once your columns are set up the way you want, save it as a preset. Next month you just drop in your new CSVs, apply the preset, and download — no setup needed.',
+    primary: 'Save preset now',
+    secondary: 'Do it later',
+    primaryAction: () => {
+      hideGuide();
+      document.getElementById('save-preset-btn').click();
+    },
+    secondaryAction: () => {
+      hideGuide();
+      localStorage.setItem(GUIDED_KEY, '1');
+    }
+  }
+];
+
+function showGuidedStep(step) {
+  guidedStep = step;
+  const s = guidedSteps[step];
+  guidedStepLabel.textContent = `Step ${step + 1} of ${guidedSteps.length}`;
+  guidedTitle.textContent = s.title;
+  guidedBody.textContent = s.body;
+  guidedPrimary.textContent = s.primary;
+  guidedPrimary.onclick = s.primaryAction || s.action;
+
+  if (s.secondary) {
+    guidedSecondary.style.display = 'inline-flex';
+    guidedSecondary.textContent = s.secondary;
+    guidedSecondary.onclick = s.secondaryAction;
+  } else {
+    guidedSecondary.style.display = 'none';
+  }
+
+  // Dots
+  guidedDots.innerHTML = '';
+  guidedSteps.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.style.cssText = `width:6px;height:6px;border-radius:50%;background:${i === step ? 'var(--accent)' : 'var(--border-hover)'};transition:background 0.2s;`;
+    guidedDots.appendChild(dot);
+  });
+
+  guidedSetup.style.display = 'flex';
+}
+
+function hideGuide() {
+  guidedSetup.style.display = 'none';
+}
+
+function skipGuide() {
+  hideGuide();
+  localStorage.setItem(GUIDED_KEY, '1');
+}
+
+// Trigger guided setup after first CSV loads (step 1 shown before load, step 2+ after)
+function startGuide() {
+  if (!localStorage.getItem(GUIDED_KEY) && !localStorage.getItem(ONBOARDING_KEY)) return; // onboarding takes priority
+  if (localStorage.getItem(GUIDED_KEY)) return; // already done
+  showGuidedStep(0);
+}
+
+let allHeaders = [], allRows = [], dragSrc = null;
+
+// Show onboarding if first visit
+const onboarding = document.getElementById('onboarding');
+if (!localStorage.getItem(ONBOARDING_KEY)) {
+  onboarding.style.display = 'flex';
+}
+document.getElementById('onboarding-close').addEventListener('click', () => {
+  localStorage.setItem(ONBOARDING_KEY, '1');
+  onboarding.style.display = 'none';
+  // Start guided setup after onboarding
+  setTimeout(() => showGuidedStep(0), 400);
+});
+
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+const uploadSection = document.getElementById('upload-section');
+const columnsSection = document.getElementById('columns-section');
+// actionsSection removed - using sticky bar instead
+const colList = document.getElementById('col-list');
+const colCount = document.getElementById('col-count');
+const savedBanner = document.getElementById('saved-banner');
+const saveConfirm = document.getElementById('save-confirm');
+const clearSavedBtn = document.getElementById('clear-saved-btn');
+
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+// Swap zone — separate drop area above column pills
+const swapZone = document.getElementById('swap-zone');
+const swapInput = document.getElementById('swap-input');
+swapZone.addEventListener('dragover', e => { e.preventDefault(); swapZone.style.borderColor = 'var(--accent)'; swapZone.style.background = 'var(--accent-dim)'; });
+swapZone.addEventListener('dragleave', () => { swapZone.style.borderColor = ''; swapZone.style.background = ''; });
+swapZone.addEventListener('drop', e => { e.preventDefault(); swapZone.style.borderColor = ''; swapZone.style.background = ''; swapActiveFile(e.dataTransfer.files[0]); });
+swapInput.addEventListener('change', e => { swapActiveFile(e.target.files[0]); e.target.value = ''; });
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { parseCSV(e.target.result, file.name); };
+  reader.readAsText(file);
+}
+
+function swapActiveFile(file) {
+  if (!file) return;
+  // If no CSVs loaded yet, treat as initial load
+  if (csvStates.length === 0) { handleFile(file); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const cleaned = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[\u200B\uFEFF]/g, '');
+    const records = parseCSVRecords(cleaned);
+    saveCurrentCsvState();
+    // Replace active tab only
+    csvStates[activeCsvIndex] = {
+      name: file.name,
+      headers: records[0],
+      rows: records.slice(1).filter(row => row.some(cell => cell.trim() !== '')),
+      colOrder: null,
+      unchecked: []
+    };
+    allHeaders = csvStates[activeCsvIndex].headers;
+    allRows = csvStates[activeCsvIndex].rows;
+    renderColumns();
+    renderCsvTabs();
+    showFileLoadedBanner(file.name);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text, filename) {
+  const cleaned = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[\u200B\uFEFF]/g, '');
+  const records = parseCSVRecords(cleaned);
+  allHeaders = records[0];
+  allRows = records.slice(1).filter(row => row.some(cell => cell.trim() !== ''));
+
+  // Initialise csvStates with first file
+  csvStates = [{ name: filename || 'File 1.csv', headers: allHeaders, rows: allRows, colOrder: null, unchecked: [] }];
+  activeCsvIndex = 0;
+
+  renderColumns();
+  renderCsvTabs();
+  uploadSection.style.display = 'none';
+  columnsSection.style.display = 'block';
+  document.getElementById('sticky-bar').style.display = 'block';
+  document.body.style.paddingBottom = '70px';
+  if (filename) showFileLoadedBanner(filename);
+  renderPresets();
+  const tip = document.getElementById('excel-tip');
+  if (tip) { tip.style.opacity = '1'; setTimeout(() => { tip.style.opacity = '0'; setTimeout(() => { tip.style.display = 'none'; }, 500); }, 3000); }
+  // Trigger guided step 2 after first CSV load
+  if (!localStorage.getItem(GUIDED_KEY)) setTimeout(() => showGuidedStep(1), 400);
+}
+
+function parseCSVRecords(text) {
+  const records = [];
+  let row = [];
+  let cell = '';
+  let inQuote = false;
+  let i = 0;
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    if (inQuote) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          // Escaped quote
+          cell += '"';
+          i += 2;
+        } else {
+          // End of quoted field
+          inQuote = false;
+          i++;
+        }
+      } else {
+        // Any character inside quotes including newlines
+        cell += ch;
+        i++;
+      }
+    } else {
+      if (ch === '"') {
+        inQuote = true;
+        i++;
+      } else if (ch === ',') {
+        row.push(cell);
+        cell = '';
+        i++;
+      } else if (ch === '\n') {
+        row.push(cell);
+        cell = '';
+        if (row.some(c => c.trim() !== '')) records.push(row);
+        row = [];
+        i++;
+      } else {
+        cell += ch;
+        i++;
+      }
+    }
+  }
+
+  // Last cell/row
+  if (cell || row.length > 0) {
+    row.push(cell);
+    if (row.some(c => c.trim() !== '')) records.push(row);
+  }
+
+  return records;
+}
+
+function getSaved() {
+  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+}
+
+function renderColumns(overrideOrder, overrideUnchecked) {
+  colList.innerHTML = '';
+  saveConfirm.style.display = 'none';
+  savedBanner.style.display = 'none';
+
+  let ordered = [...allHeaders];
+  let unchecked = new Set();
+
+  if (overrideOrder) {
+    // Switching between CSV tabs — use saved state
+    const reordered = [];
+    overrideOrder.forEach(h => { if (allHeaders.includes(h)) reordered.push(h); });
+    allHeaders.forEach(h => { if (!overrideOrder.includes(h)) reordered.push(h); });
+    ordered = reordered;
+    unchecked = overrideUnchecked || new Set();
+  } else {
+    const prefs = getSaved();
+    if (prefs) {
+      const reordered = [];
+      prefs.order.forEach(h => { if (allHeaders.includes(h)) reordered.push(h); });
+      allHeaders.forEach(h => { if (!prefs.order.includes(h)) reordered.push(h); });
+      ordered = reordered;
+      unchecked = new Set(prefs.unchecked || []);
+      savedBanner.style.display = 'flex';
+      savedBanner.style.opacity = '1';
+      clearSavedBtn.style.display = 'inline';
+      setTimeout(() => {
+        savedBanner.style.opacity = '0';
+        setTimeout(() => { savedBanner.style.display = 'none'; }, 500);
+      }, 2500);
+    }
+  }
+
+  ordered.forEach(h => {
+    const origIdx = allHeaders.indexOf(h);
+    const isChecked = !unchecked.has(h);
+    const pill = document.createElement('div');
+    pill.className = 'pill' + (isChecked ? ' selected' : ' unchecked');
+    pill.dataset.header = h;
+    pill.dataset.idx = origIdx;
+    pill.dataset.checked = isChecked ? '1' : '0';
+    pill.draggable = true;
+
+    const grip = document.createElement('span');
+    grip.className = 'pill-grip';
+    grip.textContent = '⠿';
+
+    const label = document.createElement('span');
+    label.textContent = pill.dataset.customName || h;
+    label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;';
+    label.title = 'Double-click to rename this column in the output';
+    label.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      const current = pill.dataset.customName || pill.dataset.header;
+      const newName = prompt('Rename this column in the output:', current);
+      if (newName && newName.trim()) {
+        pill.dataset.customName = newName.trim();
+        label.textContent = newName.trim();
+      }
+    });
+
+    const badge = document.createElement('span');
+    badge.className = 'pill-badge';
+
+    const check = document.createElement('span');
+    check.className = 'pill-check';
+    check.textContent = '✓';
+    check.style.cssText = 'margin-left:auto;font-size:12px;color:var(--accent);flex-shrink:0;display:' + (isChecked ? 'block' : 'none') + ';';
+
+    pill.append(badge, grip, label, check);
+
+    // Click to toggle checked state
+    pill.addEventListener('click', () => {
+      if (dragSrc) return; // don't toggle while dragging
+      const nowChecked = pill.dataset.checked === '1';
+      pill.dataset.checked = nowChecked ? '0' : '1';
+      pill.classList.toggle('unchecked', nowChecked);
+      pill.classList.toggle('selected', !nowChecked);
+      pill.querySelector('.pill-check').style.display = nowChecked ? 'none' : 'block';
+      updateCount();
+      colSearch.dispatchEvent(new Event('input'));
+    });
+
+    pill.addEventListener('dragstart', e => {
+      dragSrc = pill;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', h);
+      setTimeout(() => pill.classList.add('dragging'), 0);
+    });
+    pill.addEventListener('dragend', () => { pill.classList.remove('dragging'); dragSrc = null; updateBadges(); });
+    pill.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (dragSrc && dragSrc !== pill && !e.dataTransfer.types.includes('Files')) {
+        const after = e.clientX > pill.getBoundingClientRect().left + pill.getBoundingClientRect().width / 2;
+        colList.insertBefore(dragSrc, after ? pill.nextSibling : pill);
+      }
+    });
+
+    colList.appendChild(pill);
+  });
+  updateCount();
+}
+
+function updateCount() {
+  const checked = Array.from(colList.querySelectorAll('.pill')).filter(p => p.dataset.checked === '1').length;
+  colCount.textContent = checked + ' / ' + allHeaders.length + ' columns';
+  updateBadges();
+}
+
+function updateBadges() {
+  let position = 1;
+  Array.from(colList.querySelectorAll('.pill')).forEach(pill => {
+    const badge = pill.querySelector('.pill-badge');
+    const checked = pill.dataset.checked === '1';
+    if (checked) {
+      badge.textContent = position++;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  });
+}
+
+document.getElementById('save-btn').addEventListener('click', () => {
+  const pills = Array.from(colList.children);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    order: pills.map(p => p.dataset.header),
+    unchecked: pills.filter(p => p.dataset.checked !== '1').map(p => p.dataset.header)
+  }));
+  saveConfirm.style.display = 'flex';
+  clearSavedBtn.style.display = 'inline';
+  setTimeout(() => saveConfirm.style.display = 'none', 3000);
+});
+
+// --- Multi-CSV management ---
+let csvFiles = []; // array of { name, headers, rows, pills state handled separately }
+let activeCsvIndex = 0;
+let csvStates = []; // per-csv: { headers, rows, colOrder, unchecked }
+
+function saveCurrentCsvState() {
+  if (csvStates.length === 0) return;
+  const pills = Array.from(colList.querySelectorAll('.pill'));
+  const customNames = {};
+  pills.forEach(p => { if (p.dataset.customName) customNames[p.dataset.header] = p.dataset.customName; });
+  csvStates[activeCsvIndex] = {
+    ...csvStates[activeCsvIndex],
+    colOrder: pills.map(p => p.dataset.header),
+    unchecked: pills.filter(p => p.dataset.checked !== '1').map(p => p.dataset.header),
+    tabLabel: csvStates[activeCsvIndex].tabLabel,
+    customNames
+  };
+}
+
+function switchCsvTab(index) {
+  saveCurrentCsvState();
+  activeCsvIndex = index;
+  const state = csvStates[index];
+  allHeaders = state.headers;
+  allRows = state.rows;
+  renderColumns(state.colOrder, new Set(state.unchecked || []));
+  renderCsvTabs();
+  showFileLoadedBanner(state.name);
+  switchTab('arrange');
+}
+
+function renderCsvTabs() {
+  const list = document.getElementById('csv-tab-list');
+  list.innerHTML = '';
+  csvStates.forEach((s, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:0;';
+
+    const btn = document.createElement('button');
+    btn.textContent = s.tabLabel || s.name.replace('.csv','');
+    btn.title = 'Double-click to rename';
+    btn.style.cssText = `padding:5px 10px;font-size:12px;background:${i === activeCsvIndex ? 'var(--accent)' : 'var(--surface-2)'};color:${i === activeCsvIndex ? '#fff' : 'var(--text-muted)'};border:1px solid ${i === activeCsvIndex ? 'var(--accent)' : 'var(--border)'};border-right:none;border-radius:7px 0 0 7px;cursor:pointer;font-family:'DM Sans',sans-serif;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+    btn.addEventListener('click', () => switchCsvTab(i));
+    btn.addEventListener('dblclick', () => {
+      const current = csvStates[i].tabLabel || csvStates[i].name.replace('.csv','');
+      const newName = prompt('Rename this tab:', current);
+      if (newName && newName.trim()) {
+        csvStates[i].tabLabel = newName.trim();
+        renderCsvTabs();
+      }
+    });
+
+    const del = document.createElement('button');
+    del.textContent = '×';
+    del.title = 'Remove this CSV';
+    del.style.cssText = `padding:5px 8px;font-size:13px;background:${i === activeCsvIndex ? 'var(--accent)' : 'var(--surface-2)'};color:${i === activeCsvIndex ? 'rgba(255,255,255,0.7)' : 'var(--text-dim)'};border:1px solid ${i === activeCsvIndex ? 'var(--accent)' : 'var(--border)'};border-radius:0 7px 7px 0;cursor:pointer;font-family:'DM Sans',sans-serif;`;
+    del.addEventListener('click', () => {
+      if (csvStates.length === 1) {
+        document.getElementById('reset-btn').click();
+        return;
+      }
+      csvStates.splice(i, 1);
+      activeCsvIndex = Math.min(activeCsvIndex, csvStates.length - 1);
+      switchCsvTab(activeCsvIndex);
+    });
+
+    wrap.append(btn, del);
+    list.appendChild(wrap);
+  });
+}
+
+// Add CSV button
+document.getElementById('add-csv-btn').addEventListener('click', () => {
+  document.getElementById('add-csv-input').click();
+});
+
+document.getElementById('add-csv-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const text = ev.target.result;
+    const cleaned = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[\u200B\uFEFF]/g, '');
+    const records = parseCSVRecords(cleaned);
+    saveCurrentCsvState();
+    csvStates.push({
+      name: file.name,
+      headers: records[0],
+      rows: records.slice(1).filter(row => row.some(cell => cell.trim() !== '')),
+      colOrder: null,
+      unchecked: []
+    });
+    activeCsvIndex = csvStates.length - 1;
+    allHeaders = csvStates[activeCsvIndex].headers;
+    allRows = csvStates[activeCsvIndex].rows;
+    renderColumns(null, new Set());
+    renderCsvTabs();
+    showFileLoadedBanner(file.name);
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('dl-btn').addEventListener('click', () => {
+  saveCurrentCsvState();
+
+  const getOutputHeaders = (state) => {
+    const orderedHeaders = state.colOrder || state.headers;
+    const uncheckedSet = new Set(state.unchecked || []);
+    const customNames = state.customNames || {};
+    return orderedHeaders
+      .filter(h => !uncheckedSet.has(h))
+      .map(h => ({ raw: h, output: customNames[h] || h }));
+  };
+
+  if (csvStates.length === 1) {
+    const state = csvStates[0];
+    const cols = getOutputHeaders(state);
+    const indices = cols.map(c => state.headers.indexOf(c.raw));
+    const header = cols.map(c => '"' + c.output.replace(/"/g, '""') + '"').join(',');
+    const rows = state.rows.map(row => indices.map(i => '"' + (row[i] || '').replace(/"/g, '""') + '"').join(','));
+    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = state.name.replace('.csv', '_reordered.csv');
+    a.click();
+  } else {
+    const wb = XLSX.utils.book_new();
+    csvStates.forEach(state => {
+      const cols = getOutputHeaders(state);
+      const indices = cols.map(c => state.headers.indexOf(c.raw));
+      const sheetData = [cols.map(c => c.output), ...state.rows.map(row => indices.map(i => row[i] || ''))];
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      const sheetName = (state.tabLabel || state.name.replace('.csv', '')).slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+    XLSX.writeFile(wb, 'sessions_combined.xlsx');
+  }
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  allHeaders = []; allRows = []; csvStates = []; activeCsvIndex = 0;
+  colList.innerHTML = '';
+  uploadSection.style.display = 'block';
+  columnsSection.style.display = 'none';
+  document.getElementById('csv-tab-list').innerHTML = '';
+  document.getElementById('file-loaded-banner').style.display = 'none';
+  document.getElementById('sticky-bar').style.display = 'none';
+  document.body.style.paddingBottom = '0';
+  fileInput.value = '';
+  colSearch.value = '';
+  searchCount.textContent = '';
+  switchTab('arrange');
+});
+
+document.getElementById('select-all-btn').addEventListener('click', () => {
+  colList.querySelectorAll('.pill').forEach(pill => {
+    pill.dataset.checked = '1';
+    pill.classList.remove('unchecked');
+    pill.classList.add('selected');
+    pill.querySelector('.pill-check').style.display = 'block';
+  });
+  updateCount();
+  colSearch.dispatchEvent(new Event('input'));
+});
+
+document.getElementById('deselect-all-btn').addEventListener('click', () => {
+  colList.querySelectorAll('.pill').forEach(pill => {
+    pill.dataset.checked = '0';
+    pill.classList.add('unchecked');
+    pill.classList.remove('selected');
+    pill.querySelector('.pill-check').style.display = 'none';
+  });
+  updateCount();
+  colSearch.dispatchEvent(new Event('input'));
+});
+
+// Search bar
+const colSearch = document.getElementById('col-search');
+const searchCount = document.getElementById('search-count');
+
+colSearch.addEventListener('focus', () => colSearch.style.borderColor = 'var(--accent)');
+colSearch.addEventListener('blur', () => colSearch.style.borderColor = 'var(--border)');
+
+colSearch.addEventListener('input', () => {
+  const term = colSearch.value.toLowerCase().trim();
+  let visible = 0;
+  colList.querySelectorAll('.pill').forEach(pill => {
+    const name = pill.dataset.header.toLowerCase();
+    const checked = pill.dataset.checked === '1';
+    // Always show checked pills, filter unchecked ones by search term
+    const match = checked || !term || name.includes(term);
+    pill.style.display = match ? '' : 'none';
+    if (match && !checked) visible++;
+  });
+  searchCount.textContent = term ? visible + ' matching' : '';
+});
+
+// --- Demo Mode ---
+let demoStep = 0;
+
+const demoSteps = [
+  {
+    title: '📂 Step 1 — Upload your CSV',
+    visual: `<div style="border:2px dashed var(--accent);border-radius:10px;padding:2rem;text-align:center;animation:pulse 2s infinite;">
+      <div style="font-size:32px;margin-bottom:8px;">↑</div>
+      <div style="font-size:15px;font-weight:500;color:var(--text);">Drop your CSV here</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">or click to browse</div>
+    </div>`,
+    body: 'Start by dropping any CSV export from the admin portal onto the upload area — Submissions, Sessions, or Surveys. The tool reads all the column headers automatically.'
+  },
+  {
+    title: '🔲 Step 2 — Choose your columns',
+    visual: `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+      ${['Student','Student Email','Host','Host Email','Start Date','End Date','Status','Subject','Level'].map((h,i) => 
+        `<div style="padding:7px 10px;background:${i<4?'var(--accent-dim)':'var(--surface)'};border:1px solid ${i<4?'var(--accent)':'var(--border)'};border-left:${i<4?'3px solid var(--accent)':'1px solid var(--border)'};border-radius:7px;font-size:12px;color:${i<4?'var(--text)':'var(--text-muted)'};display:flex;align-items:center;gap:5px;">
+          <span style="color:${i<4?'var(--accent)':'var(--text-dim)'};font-size:10px;">${i<4?'✓':'○'}</span>${h}
+        </div>`
+      ).join('')}
+    </div>`,
+    body: 'Click any column to include or exclude it. The highlighted columns with a blue border are selected — they will appear in your download. Click again to deselect.'
+  },
+  {
+    title: '↕️ Step 3 — Drag to reorder',
+    visual: `<div style="display:flex;flex-direction:column;gap:6px;">
+      ${['1 · Student','2 · Student Email','3 · Host','4 · Start Date Time'].map(h => 
+        `<div style="padding:8px 12px;background:var(--accent-dim);border:1px solid var(--accent);border-left:3px solid var(--accent);border-radius:7px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px;cursor:grab;">
+          <span style="color:var(--text-dim);">⠿</span>${h}<span style="margin-left:auto;font-size:11px;color:var(--accent);">✓</span>
+        </div>`
+      ).join('')}
+    </div>`,
+    body: 'Drag columns into the exact order you want them in the output. The number on each column shows its position. Use the search bar to find specific columns quickly.'
+  },
+  {
+    title: '✏️ Step 4 — Rename columns (optional)',
+    visual: `<div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-2);border-radius:8px;">
+        <span style="font-size:13px;color:var(--text-muted);">Assignment #</span>
+        <span style="color:var(--text-dim);">→</span>
+        <span style="font-size:13px;color:var(--accent);font-weight:500;">ID</span>
+        <span style="font-size:11px;color:var(--text-dim);margin-left:auto;">double-click to rename</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-2);border-radius:8px;">
+        <span style="font-size:13px;color:var(--text-muted);">Citation Style</span>
+        <span style="color:var(--text-dim);">→</span>
+        <span style="font-size:13px;color:var(--accent);font-weight:500;">Format</span>
+        <span style="font-size:11px;color:var(--text-dim);margin-left:auto;">double-click to rename</span>
+      </div>
+    </div>`,
+    body: 'Double-click any column name to rename it in the output. The raw CSV column stays the same — only the name in your downloaded file changes. Useful if you prefer shorter or different labels.'
+  },
+  {
+    title: '➕ Step 5 — Add more CSVs (optional)',
+    visual: `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <div style="padding:5px 12px;background:var(--accent);color:#fff;border-radius:7px 0 0 7px;font-size:13px;">Draft Reviews</div>
+      <div style="padding:5px 8px;background:var(--accent);color:rgba(255,255,255,0.7);border-radius:0 7px 7px 0;font-size:13px;">×</div>
+      <div style="padding:5px 12px;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border);border-radius:7px 0 0 7px;font-size:13px;">Live Sessions</div>
+      <div style="padding:5px 8px;background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border);border-radius:0 7px 7px 0;font-size:13px;">×</div>
+      <div style="padding:5px 12px;background:transparent;border:1.5px dashed var(--border-hover);border-radius:7px;color:var(--text-muted);font-size:12px;cursor:pointer;">+ Add CSV</div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text-muted);padding:8px 12px;background:var(--surface-2);border-radius:8px;">Each CSV gets its own tab. Download as one Excel file with multiple sheets.</div>`,
+    body: 'Click "+ Add CSV" to load additional data sources. Each one gets its own tab. Set up columns independently for each. When you download, everything comes out as one Excel file with separate sheets.'
+  },
+  {
+    title: '💾 Step 6 — Save your setup',
+    visual: `<div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;padding:9px 16px;background:var(--accent);color:#fff;border-radius:8px;font-size:13px;font-weight:500;text-align:center;">↓ Download CSV</div>
+        <div style="padding:9px 16px;background:transparent;border:1px solid var(--border-hover);color:var(--text-muted);border-radius:8px;font-size:13px;text-align:center;">Save column order</div>
+      </div>
+      <div style="padding:10px 12px;background:var(--surface-2);border-radius:8px;font-size:12px;color:var(--text-muted);">
+        <span style="color:var(--success);font-weight:500;">✓ Saved as "Monthly Report"</span> — next time just drop your CSVs and hit Download
+      </div>
+    </div>`,
+    body: 'Click "Save column order" to save your setup permanently. Next time you open the tool your column preferences load automatically. Use Presets to save multiple named layouts and switch between them instantly.'
+  }
+];
+
+function showDemoStep(step) {
+  demoStep = step;
+  const s = demoSteps[step];
+  document.getElementById('demo-title').textContent = s.title;
+  document.getElementById('demo-visual').innerHTML = s.visual;
+  document.getElementById('demo-body').textContent = s.body;
+
+  const dots = document.getElementById('demo-dots');
+  dots.innerHTML = '';
+  demoSteps.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.style.cssText = `width:7px;height:7px;border-radius:50%;background:${i === step ? 'var(--accent)' : 'var(--border-hover)'};transition:background 0.2s;cursor:pointer;`;
+    dot.addEventListener('click', () => showDemoStep(i));
+    dots.appendChild(dot);
+  });
+
+  document.getElementById('demo-prev').style.opacity = step === 0 ? '0.3' : '1';
+  document.getElementById('demo-prev').disabled = step === 0;
+  document.getElementById('demo-next').textContent = step === demoSteps.length - 1 ? 'Close ✓' : 'Next →';
+}
+
+function closeDemo() {
+  document.getElementById('demo-overlay').style.display = 'none';
+}
+
+document.getElementById('demo-btn').addEventListener('click', () => {
+  showDemoStep(0);
+  document.getElementById('demo-overlay').style.display = 'flex';
+});
+
+document.getElementById('demo-next').addEventListener('click', () => {
+  if (demoStep === demoSteps.length - 1) { closeDemo(); return; }
+  showDemoStep(demoStep + 1);
+});
+
+document.getElementById('demo-prev').addEventListener('click', () => {
+  if (demoStep > 0) showDemoStep(demoStep - 1);
+});
+
+// Add demo to help button context — show demo option in onboarding footer
+document.getElementById('help-btn').addEventListener('click', () => {
+  onboarding.style.display = 'flex';
+});
+
+// --- File loaded banner ---
+function showFileLoadedBanner(filename) {
+  const banner = document.getElementById('file-loaded-banner');
+  const name = document.getElementById('file-loaded-name');
+  name.textContent = filename;
+  banner.style.display = 'flex';
+}
+
+// --- Presets ---
+const PRESETS_KEY = 'quadc_presets_v1';
+
+function getPresets() {
+  try { const r = localStorage.getItem(PRESETS_KEY); return r ? JSON.parse(r) : {}; } catch(e) { return {}; }
+}
+
+function savePresets(presets) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+}
+
+function renderPresets() {
+  const presets = getPresets();
+  const list = document.getElementById('preset-list');
+  list.innerHTML = '';
+  Object.keys(presets).forEach(name => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:0;';
+
+    const btn = document.createElement('button');
+    btn.textContent = name;
+    btn.style.cssText = 'flex:1;padding:6px 10px;font-size:13px;background:var(--surface-2);border:1px solid var(--border);border-right:none;border-radius:7px 0 0 7px;color:var(--text-muted);cursor:pointer;font-family:"DM Sans",sans-serif;text-align:left;transition:all 0.15s;';
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'var(--pill-hover)'; btn.style.color = 'var(--text)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'var(--surface-2)'; btn.style.color = 'var(--text-muted)'; });
+    btn.addEventListener('click', () => { applyPreset(name); closeDropdown(); });
+
+    const del = document.createElement('button');
+    del.textContent = '×';
+    del.title = 'Delete preset';
+    del.style.cssText = 'padding:6px 10px;font-size:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:0 7px 7px 0;color:var(--text-dim);cursor:pointer;font-family:"DM Sans",sans-serif;transition:all 0.15s;';
+    del.addEventListener('mouseenter', () => { del.style.color = '#f87171'; });
+    del.addEventListener('mouseleave', () => { del.style.color = 'var(--text-dim)'; });
+    del.addEventListener('click', () => {
+      const p = getPresets();
+      delete p[name];
+      savePresets(p);
+      renderPresets();
+    });
+
+    wrap.append(btn, del);
+    list.appendChild(wrap);
+  });
+
+  // Show empty state if no presets
+  if (Object.keys(presets).length === 0) {
+    const empty = document.createElement('div');
+    empty.textContent = 'No presets saved yet';
+    empty.style.cssText = 'font-size:12px;color:var(--text-dim);padding:4px 2px;';
+    list.appendChild(empty);
+  }
+}
+
+// Dropdown toggle
+const presetsToggle = document.getElementById('presets-toggle');
+const presetsDropdown = document.getElementById('presets-dropdown');
+
+function closeDropdown() { presetsDropdown.style.display = 'none'; }
+
+presetsToggle.addEventListener('click', e => {
+  e.stopPropagation();
+  const isOpen = presetsDropdown.style.display === 'block';
+  presetsDropdown.style.display = isOpen ? 'none' : 'block';
+});
+
+document.addEventListener('click', () => closeDropdown());
+
+function applyPreset(name) {
+  const presets = getPresets();
+  const preset = presets[name];
+  if (!preset) return;
+
+  saveCurrentCsvState();
+
+  // Apply config to each CSV state that matches by filename
+  if (preset.csvConfigs) {
+    csvStates.forEach((state, i) => {
+      const config = preset.csvConfigs[state.name];
+      if (config) {
+        csvStates[i].colOrder = config.order;
+        csvStates[i].unchecked = config.unchecked;
+        if (config.tabLabel) csvStates[i].tabLabel = config.tabLabel;
+      }
+    });
+  } else {
+    // Legacy single-CSV preset — apply to active tab only
+    csvStates[activeCsvIndex].colOrder = preset.order;
+    csvStates[activeCsvIndex].unchecked = preset.unchecked || [];
+  }
+
+  // Re-render active tab
+  const state = csvStates[activeCsvIndex];
+  allHeaders = state.headers;
+  allRows = state.rows;
+  renderColumns(state.colOrder, new Set(state.unchecked || []));
+  renderCsvTabs();
+  closeDropdown();
+}
+
+document.getElementById('save-preset-btn').addEventListener('click', () => {
+  const name = prompt('Name this preset:');
+  if (!name || !name.trim()) return;
+
+  saveCurrentCsvState();
+
+  const presets = getPresets();
+  const csvConfigs = {};
+  csvStates.forEach(state => {
+    csvConfigs[state.name] = {
+      order: state.colOrder || state.headers,
+      unchecked: state.unchecked || [],
+      tabLabel: state.tabLabel || state.name.replace('.csv','')
+    };
+  });
+
+  presets[name.trim()] = { csvConfigs };
+  savePresets(presets);
+  renderPresets();
+});
+
+// --- Tabs ---
+function switchTab(tab) {
+  const arrangeContent = document.getElementById('tab-arrange-content');
+  const previewContent = document.getElementById('tab-preview-content');
+  const tabArrange = document.getElementById('tab-arrange');
+  const tabPreview = document.getElementById('tab-preview');
+
+  if (tab === 'arrange') {
+    arrangeContent.style.display = 'block';
+    previewContent.style.display = 'none';
+    tabArrange.style.borderBottomColor = 'var(--accent)';
+    tabArrange.style.color = 'var(--text)';
+    tabPreview.style.borderBottomColor = 'transparent';
+    tabPreview.style.color = 'var(--text-muted)';
+  } else {
+    arrangeContent.style.display = 'none';
+    previewContent.style.display = 'block';
+    tabArrange.style.borderBottomColor = 'transparent';
+    tabArrange.style.color = 'var(--text-muted)';
+    tabPreview.style.borderBottomColor = 'var(--accent)';
+    tabPreview.style.color = 'var(--text)';
+    buildPreview();
+  }
+}
+
+function buildPreview() {
+  const table = document.getElementById('preview-table');
+  table.innerHTML = '';
+
+  const pills = Array.from(colList.querySelectorAll('.pill')).filter(p => p.dataset.checked === '1');
+  const indices = pills.map(p => parseInt(p.dataset.idx));
+  const headers = pills.map(p => p.dataset.header);
+  const previewRows = allRows.filter(row => row.some(c => c.trim() !== '')).slice(0, 5);
+
+  // Header row
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    th.style.cssText = 'padding:9px 12px;text-align:left;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap;';
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Data rows
+  const tbody = document.createElement('tbody');
+  previewRows.forEach((row, ri) => {
+    const tr = document.createElement('tr');
+    tr.style.background = ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)';
+    indices.forEach(i => {
+      const td = document.createElement('td');
+      td.textContent = (row[i] || '').trim();
+      td.style.cssText = 'padding:8px 12px;font-size:13px;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+clearSavedBtn.addEventListener('click', () => {
+  localStorage.removeItem(STORAGE_KEY);
+  clearSavedBtn.style.display = 'none';
+  savedBanner.style.display = 'none';
+  saveConfirm.style.display = 'flex';
+  saveConfirm.querySelector('div + *') && (saveConfirm.lastChild.textContent = ' Saved preferences cleared.');
+  setTimeout(() => saveConfirm.style.display = 'none', 2500);
+});
+</script>
+</body>
+</html>
